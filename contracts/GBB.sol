@@ -85,6 +85,9 @@ contract GBB {
         }
         return myMoves;
     }
+    function getMyUnclaimedAmount() external view returns (uint) {
+      return unclaimedAmounts[msg.sender];
+    }
 
     function getBlendNumber(bytes32 hash, address _player) private view returns (uint32[] memory) {
         uint32 optionId;

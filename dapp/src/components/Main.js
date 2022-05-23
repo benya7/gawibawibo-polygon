@@ -8,8 +8,9 @@ import { sha3_256 } from 'js-sha3';
 import { AbiCoder } from '@ethersproject/abi';
 import { keccak256 } from '@ethersproject/keccak256';
 import { useWallet } from '../App';
+import { parseUnits } from '@ethersproject/units';
+import { BigNumber } from '@ethersproject/bignumber';
 
-console.log(typeof process.env.REACT_APP_VALUES_OPTION1)
 const optionsValues = [
   process.env.REACT_APP_VALUES_OPTION1,
   process.env.REACT_APP_VALUES_OPTION2,
@@ -17,35 +18,57 @@ const optionsValues = [
 ]
 
 
+const PrizeAmount = ({
+  isLoggedIn,
+  prizeAmount,
+  setPrizeAmount,
+}) => {
+
+  const handleOnChange = (e) => {
+    setPrizeAmount(e.target.value);
+  }
+
+  return (
+    <Box
+      alignSelf='end'
+      pad={{ right: 'small' }}
+    >
+      <TextInput
+        plain='full'
+        disabled={!isLoggedIn}
+        textAlign='end'
+        placeholder='0.00'
+        type="string"
+        value={prizeAmount}
+        onChange={handleOnChange}
+      />
+    </Box>
+  )
+}
+
 
 const Main = () => {
   const size = useContext(ResponsiveContext);
   const [blends, setBlends] = useState({ b1: "", b2: "", b3: "" });
   const [openPlay, setOpenPlay] = useState(false);
   const [openTransaction, setOpenTransaction] = useState(false);
-
+  const { executionResults, lastDeployHash, movePlayed, unplayedMoves } = useSnapshot(appState);
+  const [playTarget, setPlayTarget] = useState();
   const {
-    activePublicKey,
-    isLogged,
-    unplayedMoves,
-    contractHash,
-    accountHash,
-    env,
-    explorerUrl,
-    executionResults,
-    lastDeployHash,
-    movePlayed
-  } = useSnapshot(appState);
-  const [playTarget, setPlayTarget] = useState(0)
-  const { 
     // filterUnplayedMoves, 
-    // checkStatusDeploy, 
-    // checkResultDeploy, 
-    // filterMoveForId, 
-    accounts
+    checkStatusDeploy,
+    checkResultDeploy,
+    accounts,
+    isLoggedIn,
+    gameContract,
+    currentChain,
+    amountInputValue,
+    changeAmountInputValue,
+    getUnplayedMoves,
+    filterMoveForId
   } = useWallet();
-  const handlePlay = (id) => {
-    setPlayTarget(id)
+  const handlePlay = (move) => {
+    setPlayTarget(move)
     showPlay()
   };
 
@@ -61,37 +84,17 @@ const Main = () => {
   };
   const hideTransaction = () => {
     setOpenTransaction(false)
+    getUnplayedMoves().then(result => appState.unplayedMoves = result)
   };
 
   const handleCancel = useCallback(async (id) => {
     try {
-      // const contractPackageHash = decodeBase16(contractHash);
-      // const publicKey = CLPublicKey.fromHex(activePublicKey);
-      // const deployParams = new DeployUtil.DeployParams(publicKey, env);
-      // let args = RuntimeArgs.fromMap({
-      //   target_move_id: new CLU32(id)
-      // });
-      // const session = DeployUtil.ExecutableDeployItem.newStoredContractByHash(
-      //   contractPackageHash,
-      //   "cancel_move",
-      //   args
-      // )
-      // const deployUnsigned = DeployUtil.makeDeploy(
-      //   deployParams,
-      //   session,
-      //   DeployUtil.standardPayment(5000000000)
-      // );
-      // const deployJson = DeployUtil.deployToJson(deployUnsigned);
-      // let signedDeployJSON = await Signer.sign(deployJson, activePublicKey, activePublicKey);
-      // let signedDeploy = DeployUtil.deployFromJson(signedDeployJSON).unwrap();
-      // showTransaction();
-      // let resultDeploy = await clientRpc.deploy(signedDeploy);
-      // appState.lastDeployHash = resultDeploy.deploy_hash;
-      // let result = await checkStatusDeploy(resultDeploy.deploy_hash);
-      // appState.executionResults.loading = false;
-      // checkResultDeploy(result, 'cancel_move')
 
-
+      let tx = await gameContract.cancelMove(BigNumber.from(id));
+      showTransaction();
+      let result = await checkStatusDeploy(tx);
+      checkResultDeploy(result, 'cancelMove')
+      appState.executionResults.loading = false;
     } catch (error) {
       console.log(error)
       console.error(error)
@@ -106,108 +109,89 @@ const Main = () => {
       const option = sha3_256(blends.b1 + blends.b2 + blends.b3).slice(0, 10);
       const blend = abiCoder.encode(['string', 'address'], [option, accounts[0]]);
       const hash = keccak256(blend);
-      // const contractPackageHash = decodeBase16(contractHash);
-      // const publicKey = CLPublicKey.fromHex(activePublicKey);
-      // const deployParams = new DeployUtil.DeployParams(publicKey, env);
-      // let args = RuntimeArgs.fromMap({
-      //   new_move_id: new CLU32(id),
-      //   owner_blend_hash: new CLString(hash_hex),
-      // });
-      // const session = DeployUtil.ExecutableDeployItem.newStoredContractByHash(
-      //   contractPackageHash,
-      //   "new_move",
-      //   args
-      // )
-      // const deployUnsigned = DeployUtil.makeDeploy(
-      //   deployParams,
-      //   session,
-      //   DeployUtil.standardPayment(7000000000)
-      // );
-      // const deployJson = DeployUtil.deployToJson(deployUnsigned);
-      // let signedDeployJSON = await Signer.sign(deployJson, activePublicKey, activePublicKey);
-      // let signedDeploy = DeployUtil.deployFromJson(signedDeployJSON).unwrap();
-      // showTransaction();
-      // let resultDeploy = await clientRpc.deploy(signedDeploy);
-      // let result = await checkStatusDeploy(resultDeploy.deploy_hash);
-      // appState.executionResults.loading = false;
-      // checkResultDeploy(result, 'new_move')
 
+      let tx = await gameContract.newMove(hash, { value: parseUnits(amountInputValue) });
+      showTransaction();
+      let result = await checkStatusDeploy(tx);
+      checkResultDeploy(result, 'newMove')
+      appState.executionResults.loading = false;
     } catch (error) {
       console.log(error)
       console.error(error)
     }
   });
-
-  useEffect(() => {
-    //filterUnplayedMoves()
-  }, [])
-
-  return <Box
-    gap='medium'
-    align='center'
-    pad='medium'
-    direction={size === 'small' ? 'column' : 'row'}
-  >
+  return (
     <Box
-      background='c1'
+      gap='medium'
       align='center'
-      height={{ min: '450px', max: '450px' }}
-      pad={size === 'small' ? 'large' : 'medium'}
-      gap={size === 'small' ? 'large' : 'medium'}
-      border={{ color: 'c2' }}
-      fill
+      pad='medium'
+      direction={size === 'small' ? 'column' : 'row'}
     >
-      <Text>make a new move!</Text>
-      <Text>chooise a blend:</Text>
-      <Options blends={blends} setBlends={setBlends} isLogged={isLogged} />
-      
-      {/* <Box direction='row' align='center' gap='small'>
-        <Text margin={{ right: 'medium' }}>amount</Text>
-        <TextInput
-          disabled={isLogged ? false : true}
-          type='number'
-          min='0.1'
-          max='1000000'
-          step='0.1'
-          size='small'
-          textAlign='end' value={amount}
-          onChange={(e) => {
-            setAmount(e.target.value)
-          }}
-        />
-      </Box> */}
-      <Box direction='row' alignSelf='end' gap='medium' pad={{ right: 'large' }}>
-        <Button
-          onClick={handleClean}
-          label="clear"
-          disabled={isLogged ? false : true}
-        />
-        <Button
-          onClick={handleSubmit}
-          label="submit"
-          disabled={isLogged && blends.b1 !== '' && blends.b2 !== '' && blends.b3 !== '' ? false : true}
-        />
+      <Box
+        background='c1'
+        align='center'
+        height={{ min: '450px', max: '450px' }}
+        pad={size === 'small' ? 'large' : 'medium'}
+        gap={size === 'small' ? 'large' : 'medium'}
+        border={{ color: 'c2' }}
+        fill
+      >
+        <Text>make a new move!</Text>
+        <Text>chooise a blend:</Text>
+        <Options blends={blends} setBlends={setBlends} isLogged={isLoggedIn} />
+
+        <Box direction='row' align='center' gap='xsmall'>
+          <Text>prize amount</Text>
+          <PrizeAmount
+            isLoggedIn={isLoggedIn}
+            prizeAmount={amountInputValue}
+            setPrizeAmount={changeAmountInputValue}
+          />
+        </Box>
+        <Box direction='row' alignSelf='end' gap='medium' pad={{ right: 'large' }}>
+          <Button
+            onClick={handleClean}
+            label="clear"
+            disabled={isLoggedIn ? false : true}
+          />
+          <Button
+            onClick={handleSubmit}
+            label="submit"
+            disabled={
+              isLoggedIn &&
+                blends.b1 !== '' &&
+                blends.b2 !== '' &&
+                blends.b3 !== '' && 
+                amountInputValue !== ''
+                ?
+                false :
+                true
+            }
+          />
+        </Box>
       </Box>
-    </Box>
-    <Box
-      background='c1'
-      align='center'
-      height={{ min: '450px', max: '450px' }}
-      pad={size === 'small' ? 'large' : 'medium'}
-      gap={size === 'small' ? 'large' : 'medium'}
-      border={{ color: 'c2' }}
-      fill>
-      <Box direction='row' gap='medium' align='center'>
-        <Text>unplayed moves</Text>
-        <Refresh size='small' onClick={() => filterUnplayedMoves()} />
-      </Box>
-      <Box gap='medium' direction={size === 'small' ? 'column' : 'row'} align='center'>
-        <Text size='small'>id</Text>
-        <Text size='small'>owner</Text>
-        <Text size='small'>play</Text>
-      </Box>
-      {
-        appState.unplayedMoves.length > 0 && isLogged ?
+      <Box
+        background='c1'
+        align='center'
+        height={{ min: '450px', max: '450px' }}
+        pad={size === 'small' ? 'large' : 'medium'}
+        gap={size === 'small' ? 'large' : 'medium'}
+        border={{ color: 'c2' }}
+        fill>
+        <Box direction='row' gap='medium' align='center'>
+          <Text>unplayed moves</Text>
+          <Refresh size='small' onClick={() => {
+            getUnplayedMoves().then(result => appState.unplayedMoves = result)
+          }} />
+        </Box>
+        <Box gap='medium' direction={size === 'small' ? 'column' : 'row'} align='center'>
+          <Text size='small'>id</Text>
+          <Text size='small'>owner</Text>
+          <Text size='small'>prize (in MATIC)</Text>
+          <Text size='small'>play</Text>
+        </Box>
+        {unplayedMoves &&
+          unplayedMoves.length > 0 && isLoggedIn ?
           (
             <List
               data={unplayedMoves}
@@ -218,7 +202,7 @@ const Main = () => {
                 <ActionButton
                   key={move.id}
                   move={move}
-                  accountHash={accountHash}
+                  address={accounts[0]}
                   handleCancel={handleCancel}
                   handlePlay={handlePlay}
                 />
@@ -232,7 +216,9 @@ const Main = () => {
                   justify='between'
                 >
                   <Text size='small'>{item.id}</Text>
-                  <Text size='small'>{`${item.ownerAccountHash.substring(0, 6)}...${item.ownerAccountHash.substring(item.ownerAccountHash.length - 6)}`}</Text>
+                  <Text size='small'>{`${item.owner.substring(0, 6)}...${item.owner.substring(item.owner.length - 6)}`}</Text>
+                  <Text size='small'>{item.prize}</Text>
+
                 </Box>
               )}
             </List>
@@ -241,104 +227,103 @@ const Main = () => {
           (
             <Card pad='small' size='small' background='c4' elevation='none' border>
               {
-                isLogged ?
+                isLoggedIn ?
                   (<Text size='small'>There are no moves here.</Text>)
                   :
                   (<Text size='small'>Please login to view unplayed moves.</Text>)
               }
             </Card>
           )
-      }
-    </Box>
-    {
-      openPlay && (
-        <Layer
-          position="center"
-          margin="medium"
-          responsive
-          modal
-          full="vertical"
-          onClickOutside={hidePlay}
-          onEsc={hidePlay}
-        >
-          <Box gap='medium' align='center' pad='medium'>
-            <Close onClick={hidePlay} size='small' />
-            <Play
-              playTarget={playTarget}
-              accountHash={accountHash}
-              activePublicKey={activePublicKey}
-              size={size}
-              contractHash={contractHash}
-              env={env}
-              filterMoveForId={filterMoveForId}
-              showTransaction={showTransaction}
-              clientRpc={clientRpc}
-              checkStatusDeploy={checkStatusDeploy}
-              checkResultDeploy={checkResultDeploy}
-              hidePlay={hidePlay}
-            />
-          </Box>
-        </Layer>
-      )
-    }
-    {
-      openTransaction && (
-        <Layer
-          position="center"
-          margin="medium"
-          responsive
-          modal
-          full="vertical"
-          onClickOutside={hideTransaction}
-          onEsc={hideTransaction}
-        >
-          <Box gap='medium' align='center' pad='small' width={{ min: 'medium' }} justify='center' flex>
-            <Box align='center' gap='small' margin={{bottom: 'medium'}}>
-              <Close onClick={hideTransaction} size='small' />
-              <Text weight='bold'>Transaction Result</Text>
+        }
+      </Box>
+      {
+        openPlay && (
+          <Layer
+            position="center"
+            margin="medium"
+            responsive
+            modal
+            full="vertical"
+            onClickOutside={hidePlay}
+            onEsc={hidePlay}
+          >
+            <Box gap='medium' align='center' pad='medium'>
+              <Close onClick={hidePlay} size='small' />
+              <Play
+                playTarget={playTarget}
+                amount={amountInputValue}
+                address={accounts[0]}
+                size={size}
+                gameContract={gameContract}
+                filterMoveForId={filterMoveForId}
+                showTransaction={showTransaction}
+                checkStatusDeploy={checkStatusDeploy}
+                checkResultDeploy={checkResultDeploy}
+                hidePlay={hidePlay}
+              />
             </Box>
-            {
-              executionResults.loading ?
-                <Box gap='small' align='center'>
-                  <Text size='small'>Please wait... it may take a few minutes</Text>
-                  <Spinner size='medium' />
-                </Box>
-                :
-                <Box gap='medium' align='center' >
+          </Layer>
+        )
+      }
+      {
+        openTransaction && (
+          <Layer
+            position="center"
+            margin="medium"
+            responsive
+            modal
+            full="vertical"
+            onClickOutside={hideTransaction}
+            onEsc={hideTransaction}
+          >
+            <Box gap='medium' align='center' pad='small' width={{ min: 'medium' }} justify='center' flex>
+              <Box align='center' gap='small' margin={{ bottom: 'medium' }}>
+                <Close onClick={hideTransaction} size='small' />
+                <Text weight='bold'>Transaction Result</Text>
+              </Box>
+              {
+                executionResults.loading ?
                   <Box gap='small' align='center'>
-                    <Text size='small'>{executionResults.statusMessage}</Text>
-                    <Text size='small'>{executionResults.message}</Text>
-
-                    <Box direction='row' gap='xsmall'>
-                      <Text size='small'>Deploy hash:</Text>
-                      <Anchor
-                        size='small'
-                        href={`${explorerUrl}/deploy/${lastDeployHash}`}
-                        target='_blank'
-                        label={`${lastDeployHash.substring(0, 6)}...${lastDeployHash.substring(lastDeployHash.length - 6)}`}
-                      />
-                    </Box>
+                    <Text size='small'>Please wait... it may take a few minutes</Text>
+                    <Spinner size='medium' />
                   </Box>
-                  {
-                    executionResults.method == 'play_move' &&
-                    executionResults.status == 'success' &&
+                  :
+                  <Box gap='medium' align='center' >
+                    <Box gap='small' align='center'>
+                      <Text size='small'>{executionResults.statusMessage}</Text>
+                      <Text size='small'>{executionResults.message}</Text>
 
-                    (
-                      <Box gap='small' pad='small' align='center' border>
-                        <Text weight='bold'>{movePlayed.message}</Text>
-                        <Text size='small'>winner: {movePlayed.winner ? `${movePlayed.winner.substring(0, 6)}...${movePlayed.winner.substring(movePlayed.winner.length - 6)}` : 'no winner'}</Text>
-                        <Text size='small'>id: {`${movePlayed.id}`}</Text>
-                        <Text size='small'>blendWinner: {movePlayed.blendWinner ? `${movePlayed.blendWinner.substring(0, 6)}...${movePlayed.blendWinner.substring(movePlayed.blendWinner.length - 6)}` : 'no winner'}</Text>
+                      <Box direction='row' gap='xsmall'>
+                        <Text size='small'>Deploy hash:</Text>
+                        <Anchor
+                          size='small'
+                          href={`${currentChain.explorerUrl}/tx/${lastDeployHash}`}
+                          target='_blank'
+                          label={`${lastDeployHash.substring(0, 6)}...${lastDeployHash.substring(lastDeployHash.length - 6)}`}
+                        />
                       </Box>
-                    )
-                  }
-                </Box>
-            }
-          </Box>
-        </Layer>
-      )
-    }
-  </Box >
+                    </Box>
+                    {
+                      executionResults.method == 'play_move' &&
+                      executionResults.status == 'success' &&
+
+                      (
+                        <Box gap='small' pad='small' align='center' border>
+                          <Text weight='bold'>{movePlayed.message}</Text>
+                          <Text size='small'>winner: {movePlayed.winner ? `${movePlayed.winner.substring(0, 6)}...${movePlayed.winner.substring(movePlayed.winner.length - 6)}` : 'no winner'}</Text>
+                          <Text size='small'>id: {`${movePlayed.id}`}</Text>
+                          <Text size='small'>blendWinner: {movePlayed.blendWinner ? `${movePlayed.blendWinner.substring(0, 6)}...${movePlayed.blendWinner.substring(movePlayed.blendWinner.length - 6)}` : 'no winner'}</Text>
+                        </Box>
+                      )
+                    }
+                  </Box>
+              }
+            </Box>
+          </Layer>
+        )
+      }
+    </Box >
+  )
 };
 
 export const Options = ({ blends, setBlends, isLogged }) => {
@@ -347,9 +332,9 @@ export const Options = ({ blends, setBlends, isLogged }) => {
     <RadioButtonGroup
       name='blend1'
       options={[
-        { label: <Avatar src={'/gawibawibo-casper/rock-icon-grey.png'} size='small' />, value: optionsValues[0] },
-        { label: <Avatar src={'/gawibawibo-casper/paper-icon-grey.png'} size='small' />, value: optionsValues[1] },
-        { label: <Avatar src={'/gawibawibo-casper/scissors-icon-grey.png'} size='small' />, value: optionsValues[2] },
+        { label: <Avatar src={'/gawibawibo-polygon/rock-icon-grey.png'} size='small' />, value: optionsValues[0] },
+        { label: <Avatar src={'/gawibawibo-polygon/paper-icon-grey.png'} size='small' />, value: optionsValues[1] },
+        { label: <Avatar src={'/gawibawibo-polygon/scissors-icon-grey.png'} size='small' />, value: optionsValues[2] },
       ]}
       value={blends.b1}
       onChange={(e) => setBlends({ ...blends, b1: e.target.value })}
@@ -359,9 +344,9 @@ export const Options = ({ blends, setBlends, isLogged }) => {
     <RadioButtonGroup
       name='blend2'
       options={[
-        { label: <Avatar src={'/gawibawibo-casper/rock-icon-grey.png'} size='small' />, value: optionsValues[0] },
-        { label: <Avatar src={'/gawibawibo-casper/paper-icon-grey.png'} size='small' />, value: optionsValues[1] },
-        { label: <Avatar src={'/gawibawibo-casper/scissors-icon-grey.png'} size='small' />, value: optionsValues[2] },
+        { label: <Avatar src={'/gawibawibo-polygon/rock-icon-grey.png'} size='small' />, value: optionsValues[0] },
+        { label: <Avatar src={'/gawibawibo-polygon/paper-icon-grey.png'} size='small' />, value: optionsValues[1] },
+        { label: <Avatar src={'/gawibawibo-polygon/scissors-icon-grey.png'} size='small' />, value: optionsValues[2] },
       ]}
       value={blends.b2}
       onChange={(e) => setBlends({ ...blends, b2: e.target.value })}
@@ -371,9 +356,9 @@ export const Options = ({ blends, setBlends, isLogged }) => {
     <RadioButtonGroup
       name='blend3'
       options={[
-        { label: <Avatar src={'/gawibawibo-casper/rock-icon-grey.png'} size='small' />, value: optionsValues[0] },
-        { label: <Avatar src={'/gawibawibo-casper/paper-icon-grey.png'} size='small' />, value: optionsValues[1] },
-        { label: <Avatar src={'/gawibawibo-casper/scissors-icon-grey.png'} size='small' />, value: optionsValues[2] },
+        { label: <Avatar src={'/gawibawibo-polygon/rock-icon-grey.png'} size='small' />, value: optionsValues[0] },
+        { label: <Avatar src={'/gawibawibo-polygon/paper-icon-grey.png'} size='small' />, value: optionsValues[1] },
+        { label: <Avatar src={'/gawibawibo-polygon/scissors-icon-grey.png'} size='small' />, value: optionsValues[2] },
       ]}
       value={blends.b3}
       onChange={(e) => setBlends({ ...blends, b3: e.target.value })}
@@ -383,12 +368,12 @@ export const Options = ({ blends, setBlends, isLogged }) => {
   </Box>
 }
 
-const ActionButton = ({ move, accountHash, handleCancel, handlePlay }) => {
+const ActionButton = ({ move, address, handleCancel, handlePlay }) => {
 
-  if (move.ownerAccountHash === accountHash) {
+  if (move.owner === address) {
     return <Button label='cancel' size='small' onClick={() => handleCancel(move.id)} />
   } else {
-    return <Button label='play' size='small' onClick={() => handlePlay(parseInt(move.id))} />
+    return <Button label='play' size='small' onClick={() => handlePlay(move)} />
   }
 
 }

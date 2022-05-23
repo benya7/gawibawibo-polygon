@@ -1,37 +1,74 @@
-import { Anchor, Box, Button, Header, Layer, ResponsiveContext, Text, Select, Paragraph } from 'grommet';
+import { Anchor, Box, Button, Header, Layer, ResponsiveContext, Text, Select, Avatar } from 'grommet';
 import { Apps, Close } from 'grommet-icons';
 import React, { useContext, useState } from 'react';
 import { useSnapshot } from 'valtio';
-import { appState } from '../App';
+import { appState, useWallet } from '../App';
 import { History } from './History';
 
-const ConnectBox = ({ size, activePublicKey, isLogged, explorerUrl }) => {
-  return <Box direction={size !== 'large' ? 'column' : 'row'} align='center' justify='center' gap='small'>
-    {isLogged &&
-      <Anchor
-        target='_blank'
-        href={`${explorerUrl}/account/${activePublicKey}`}
-        label={activePublicKey && `${activePublicKey.substring(0, 6)}...${activePublicKey.substring(activePublicKey.length - 6)}`}
-        size='small'
-      />}
-    {isLogged ?
-      (
-        <Button label={'disconnect'} size='small' onClick={() => {
-          window.casperlabsHelper.disconnectFromSite();
-          window.location.reload();
-        }} />
-      ) :
-      (
-        <Button label={'connect'} size='small' onClick={() => {
-          window.casperlabsHelper.requestConnection()
-        }} />
-      )
-    }
-  </Box>
+const BoxClaim = ({ isLoggedIn, contract, unclaimedAmount }) => {
+  const handleClaim = () => {
+    contract.withdraw()
+  }
+  return (<Box pad='xsmall' align='center' border={{ color: 'c2' }}>
+    <Text size='small' weight='bold'>unclaimed:</Text>
+    <Text size='small' weight='bold'>{unclaimedAmount} MATIC</Text>
+    <Button
+      disabled={isLoggedIn && unclaimedAmount !== '0' ? false : true}
+      label='claim'
+      size='small'
+      onClick={handleClaim}
+    />
+  </Box>)
+}
+export const AccountManager = () => {
+  const { connect, disconnect, isLoggedIn, accounts, currentChain } = useWallet();
+
+  return (
+    <Box
+      direction='row'
+      gap='xsmall'
+      align='center'
+    >
+
+      {isLoggedIn ?
+        (
+
+          <Box gap='xsmall' direction='row' pad={{ left: 'none' }} justify='around' align='center' fill>
+            <Text
+              size='small'
+            >
+              {isLoggedIn &&
+                accounts &&
+                (`${accounts[0].substring(0, 6)}...${accounts[0].substring(accounts[0].length - 4)}`)
+              }
+            </Text><Button
+              size='small'
+              onClick={() => {
+                disconnect()
+                window.location.reload()
+              }}
+              label={<Text size='small'>Disconnect</Text>}
+            />
+          </Box>
+
+        ) : (
+          <Button
+            size='small'
+            onClick={() => connect()}
+            label={<Text size='small'>Connect</Text>}
+
+          />
+        )
+
+      }
+    </Box>
+  )
 }
 
+
 const ResponsiveMenu = ({ toggleHistory, size }) => {
-  const { activePublicKey, isLogged, explorerUrl, themeMode, casperSignerInstalled } = useSnapshot(appState);
+  const { isLoggedIn, gameContract } = useWallet();
+  const { unclaimedAmount, themeMode } = useSnapshot(appState);
   const [openMenu, setOpenMenu] = useState(false);
 
   const toggleMenu = () => setOpenMenu((value) => !value);
@@ -50,18 +87,15 @@ const ResponsiveMenu = ({ toggleHistory, size }) => {
           <Box gap='xlarge' background='c1' align='center' pad={{ top: 'xlarge' }} justify='start' flex>
             <Close onClick={toggleMenu} size='small' />
             <Button
-              disabled={isLogged ? false : true}
+              disabled={isLoggedIn ? false : true}
               label='my moves history'
               size='small'
               margin={{ horizontal: 'large' }}
               onClick={toggleHistory}
             />
-            <ConnectBox
-              size={size}
-              activePublicKey={activePublicKey}
-              isLogged={isLogged}
-              explorerUrl={explorerUrl}
-            />
+            <BoxClaim isLogged={isLoggedIn} contract={gameContract} unclaimedAmount={unclaimedAmount} />
+
+            <AccountManager />
             <Select
               id="select"
               size='small'
@@ -92,11 +126,11 @@ const ResponsiveMenu = ({ toggleHistory, size }) => {
 
 const Faq = () => {
 
-  return <Box align='center' pad='small' overflow={{ vertical: 'scroll'}}>
+  return <Box align='center' pad='small' overflow={{ vertical: 'scroll' }}>
     <Text weight='bold' size='large'>Faq</Text>
     <Box gap='small'>
       <Text size='small'>How work it the game?</Text>
-      <Box border flex overflow={{vertical: 'scroll'}} pad='small'>
+      <Box border flex overflow={{ vertical: 'scroll' }} pad='small'>
         <Text size='small'>
           The game is the famous rock, paper, scissors (gawi, bawi, bo).
           It works in the following way.
@@ -107,7 +141,7 @@ const Faq = () => {
         </Text>
       </Box>
       <Text size='small'>How to Play?</Text>
-      <Box border flex overflow={{vertical: 'scroll'}} pad='small'>
+      <Box border flex overflow={{ vertical: 'scroll' }} pad='small'>
         <Text size='small'>
           There are two ways to play, the first is to create a new "move" and the second is to play an existing "move".
           To create a new one, in the left panel, select your combination of 3 options and then press the Submit button.
@@ -129,9 +163,28 @@ const Faq = () => {
 }
 
 
+const OptionLabel = ({
+  image,
+  name
+}) => {
+  return (
+    <Box
+      direction='row'
+      gap='xsmall'
+      align='center'
+      pad={{ vertical: 'xsmall', left: 'small', right: 'none' }}
+    >
+      <Avatar size='xsmall' src={image} />
+      <Text size='small'>{name}</Text>
+    </Box>
+  )
+}
+
 const Nav = () => {
   const size = useContext(ResponsiveContext);
-  const { activePublicKey, isLogged, explorerUrl, themeMode, env } = useSnapshot(appState);
+  //const { activePublicKey, isLogged, explorerUrl, themeMode, env } = useSnapshot(appState);
+  const { themeMode, unclaimedAmount } = useSnapshot(appState);
+  const { isLoggedIn, currentChain, chainsSupported, switchChain, gameContract} = useWallet();
   const [openHistory, setOpenHistory] = useState(false);
   const [openFaq, setOpenFaq] = useState(false);
   const toggleFaq = () => setOpenFaq((value) => !value);
@@ -145,26 +198,24 @@ const Nav = () => {
   >
     <Anchor size='large' href="#" label="GawiBawiBo" />
     <Select
-      id="select"
+      disabled={!isLoggedIn}
+      id="select-chain"
       size='small'
-      name="select"
+      name="select-chain"
       value={
-        <Box pad={{ left: 'small', vertical: 'xsmall' }}>
-          <Text size='small'>{env}</Text>
-        </Box>
-      }
-      options={['casper', 'casper-test']}
-      onChange={({ option }) => {
-        appState.env = option;
-        localStorage.setItem('env', option);
-        window.location.reload();
-      }}
+        <OptionLabel
+          image={currentChain.image}
+          name={currentChain.name}
+        />}
+      options={chainsSupported.filter(chain => chain.chainId !== currentChain.chainId)}
+      onChange={({ option }) => switchChain(option)}
     >
       {
-        (option, _) => (
-          <Box pad={{ left: 'small', vertical: 'xsmall' }}>
-            <Text size='small'>{option}</Text>
-          </Box>
+        ({ image, name }, _) => (
+          <OptionLabel
+            image={image}
+            name={name}
+          />
         )}
     </Select>
     <>
@@ -180,7 +231,7 @@ const Nav = () => {
       }
       {
         openFaq && (
-          <Layer position='center'  onClickOutside={toggleFaq} onEsc={toggleFaq}>
+          <Layer position='center' onClickOutside={toggleFaq} onEsc={toggleFaq}>
             <Box align='center' pad='medium' gap='small'>
               <Close onClick={toggleFaq} size='small' />
               <Faq />
@@ -200,18 +251,14 @@ const Nav = () => {
               margin={{ horizontal: size === 'medium' ? 'small' : 'medium' }}
             />
             <Button
-              disabled={isLogged ? false : true}
+              disabled={isLoggedIn ? false : true}
               label='my moves history'
               size='small'
               onClick={toggleHistory}
               margin={{ horizontal: size === 'medium' ? 'small' : 'medium' }}
             />
-            <ConnectBox
-              size={size}
-              activePublicKey={activePublicKey}
-              isLogged={isLogged}
-              explorerUrl={explorerUrl}
-            />
+              <BoxClaim isLogged={isLoggedIn} contract={gameContract} unclaimedAmount={unclaimedAmount} />
+            <AccountManager />
             <Select
               id="select"
               size='small'
