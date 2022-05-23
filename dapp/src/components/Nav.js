@@ -144,10 +144,9 @@ const Faq = () => {
       <Box border flex overflow={{ vertical: 'scroll' }} pad='small'>
         <Text size='small'>
           There are two ways to play, the first is to create a new "move" and the second is to play an existing "move".
-          To create a new one, in the left panel, select your combination of 3 options and then press the Submit button.
+          To create a new one, in the left panel, select your combination of 3 options, then enter the amount of the prize that you will assign to the move and finally press the Submit button.
           In the panel on the right, the unplayed "moves" will appear, yours and those of the rest of the players.
-          Your own moves give you the option to cancel, unlike other players' moves the Play button. You press that button and choose your combination of 3 options, then the Submit button.
-        </Text>
+          Your own moves give you the option to cancel, unlike other players' moves, the Play button. Hit that button and choose your combination of 3 options, then the Submit button. </Text>
       </Box>
       {/* <Text size='small'>How to Play?</Text>
       <Box border flex overflow={{vertical: 'scroll'}} pad='small'>
