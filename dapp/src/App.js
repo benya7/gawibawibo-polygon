@@ -355,13 +355,13 @@ function App() {
 
   useEffect(() => {
     getMyHistoryMoves().then(result => appState.myHistoryMoves = result)
-  }, [getMyHistoryMoves])
+  }, [getMyHistoryMoves, currentChain])
   useEffect(() => {
     getUnplayedMoves().then(result => appState.unplayedMoves = result)
-  }, [getUnplayedMoves])
+  }, [getUnplayedMoves, currentChain])
   useEffect(() => {
     getMyUnclaimedAmount().then(result => appState.unclaimedAmount = result)
-  }, [getMyUnclaimedAmount])
+  }, [getMyUnclaimedAmount, currentChain])
 
   const checkStatusDeploy = async (tx) => {
     appState.executionResults.loading = true;
