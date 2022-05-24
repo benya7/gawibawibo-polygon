@@ -25,7 +25,7 @@ export const appState = proxy({
   // isLogged: false,
   // activePublicKey: '',
   // accountHash: '',
-  unclaimedAmount: '0',
+  unclaimedAmount: "0.0",
   unplayedMoves: [],
   myHistoryMoves: [],
   contractHash: '',
@@ -54,6 +54,7 @@ function App() {
   const [signer, setSigner] = useState();
   const [walletProvider, setWalletProvider] = useState();
   const [web3Modal, setWeb3Modal] = useState();
+  const [openTransaction, setOpenTransaction] = useState(false);
 
   const [amountInputValue, setAmountInputValue] = useState("");
 
@@ -275,7 +276,9 @@ function App() {
       }
     }, [rawEthereumProvider])
 
-
+  const showTransaction = () => {
+    setOpenTransaction(true)
+  };
   const changeAmountInputValue = (amount) => {
     const regExp = /^((\d+)?(\.\d{0,4})?)$/;
     let status = regExp.test(amount);
@@ -318,14 +321,14 @@ function App() {
   const filterMoveForId = useCallback(
     async (id) => {
       let result = await gameContract.moves(BigNumber.from(id));
-      let move = { status: status[result[0]], blendHash: result[1], prize: formatEther(result[2]), winner: result[3]}
+      let move = { status: status[result[0]], blendHash: result[1], prize: formatEther(result[2]), adversary: result[3], winner: result[4]}
       return move
     }, [gameContract]);
 
-  const unclaimedAmount = useCallback(
+  const getMyUnclaimedAmount = useCallback(
     async () => {
       if (!gameContract || !accounts) return;
-      let result = await gameContract.unclaimedAmounts(accounts[0]);
+      let result = await gameContract.getMyUnclaimedAmount();
       console.log("unclaimed amount =>", result)
 
       return formatEther(result)
@@ -337,7 +340,10 @@ function App() {
       let result = await gameContract.getMyMoves();
       let movesParsed = []
       result.map(item => {
-        movesParsed.push({ status: status[item[0]], blendHash: item[1], prize: formatEther(item[2]), winner: item[3] })
+        console.log(item[1])
+        if (item[1] !== "0x0000000000000000000000000000000000000000000000000000000000000000" && item[0] !== 0) {
+          movesParsed.push({ status: status[item[0]], blendHash: item[1], prize: formatEther(item[2]), adversary: item[3], winner: item[4] })
+        }
       })
 
       return movesParsed
@@ -354,10 +360,8 @@ function App() {
     getUnplayedMoves().then(result => appState.unplayedMoves = result)
   }, [getUnplayedMoves])
   useEffect(() => {
-    unclaimedAmount().then(result => {
-      appState.unclaimedAmount = result
-    })
-  }, [unclaimedAmount])
+    getMyUnclaimedAmount().then(result => appState.unclaimedAmount = result)
+  }, [getMyUnclaimedAmount])
 
   const checkStatusDeploy = async (tx) => {
     appState.executionResults.loading = true;
@@ -374,8 +378,8 @@ function App() {
     appState.executionResults.status = ''
     appState.executionResults.statusMessage = ''
     appState.executionResults.message = ''
+    
     appState.executionResults.method = method
-    console.log(result)
     if (result) {
       appState.executionResults.status = 'success'
       appState.executionResults.statusMessage = 'Transaction success!'
@@ -421,7 +425,11 @@ function App() {
                       checkResultDeploy,
                       getUnplayedMoves,
                       getMyHistoryMoves,
-                      filterMoveForId
+                      getMyUnclaimedAmount,
+                      filterMoveForId,
+                      openTransaction,
+                      showTransaction,
+                      setOpenTransaction
                     }}>
                       <Nav />
                       <Main />

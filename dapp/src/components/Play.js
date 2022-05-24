@@ -8,6 +8,7 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { AbiCoder } from '@ethersproject/abi';
 import { keccak256 } from '@ethersproject/keccak256';
 import { parseUnits } from '@ethersproject/units';
+import { AddressZero } from '@ethersproject/constants';
 
 export const Play = ({
   playTarget,
@@ -47,7 +48,7 @@ export const Play = ({
         appState.movePlayed.message = 'Congratulations, you win this move!'
         appState.movePlayed.winner = move.winner;
 
-      } else if (move.status === "TIED") {
+      } else if (move.status === "TIED" && move.winner === AddressZero) {
         appState.movePlayed.message = 'The game was tied'
         appState.movePlayed.winner = undefined;
 

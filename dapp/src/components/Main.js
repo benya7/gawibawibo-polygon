@@ -51,7 +51,6 @@ const Main = () => {
   const size = useContext(ResponsiveContext);
   const [blends, setBlends] = useState({ b1: "", b2: "", b3: "" });
   const [openPlay, setOpenPlay] = useState(false);
-  const [openTransaction, setOpenTransaction] = useState(false);
   const { executionResults, lastDeployHash, movePlayed, unplayedMoves } = useSnapshot(appState);
   const [playTarget, setPlayTarget] = useState();
   const {
@@ -65,7 +64,11 @@ const Main = () => {
     amountInputValue,
     changeAmountInputValue,
     getUnplayedMoves,
-    filterMoveForId
+    filterMoveForId,
+    getMyUnclaimedAmount,
+    openTransaction,
+showTransaction,
+    setOpenTransaction
   } = useWallet();
   const handlePlay = (move) => {
     setPlayTarget(move)
@@ -79,12 +82,11 @@ const Main = () => {
     setOpenPlay(false)
   };
 
-  const showTransaction = () => {
-    setOpenTransaction(true)
-  };
+  
   const hideTransaction = () => {
     setOpenTransaction(false)
     getUnplayedMoves().then(result => appState.unplayedMoves = result)
+    getMyUnclaimedAmount().then(result => appState.unclaimedAmount = result)
   };
 
   const handleCancel = useCallback(async (id) => {
@@ -109,7 +111,7 @@ const Main = () => {
       const option = sha3_256(blends.b1 + blends.b2 + blends.b3).slice(0, 10);
       const blend = abiCoder.encode(['string', 'address'], [option, accounts[0]]);
       const hash = keccak256(blend);
-
+        console.log(hash);
       let tx = await gameContract.newMove(hash, { value: parseUnits(amountInputValue) });
       showTransaction();
       let result = await checkStatusDeploy(tx);
@@ -304,7 +306,7 @@ const Main = () => {
                       </Box>
                     </Box>
                     {
-                      executionResults.method == 'play_move' &&
+                      executionResults.method == 'play' &&
                       executionResults.status == 'success' &&
 
                       (
@@ -312,7 +314,6 @@ const Main = () => {
                           <Text weight='bold'>{movePlayed.message}</Text>
                           <Text size='small'>winner: {movePlayed.winner ? `${movePlayed.winner.substring(0, 6)}...${movePlayed.winner.substring(movePlayed.winner.length - 6)}` : 'no winner'}</Text>
                           <Text size='small'>id: {`${movePlayed.id}`}</Text>
-                          <Text size='small'>blendWinner: {movePlayed.blendWinner ? `${movePlayed.blendWinner.substring(0, 6)}...${movePlayed.blendWinner.substring(movePlayed.blendWinner.length - 6)}` : 'no winner'}</Text>
                         </Box>
                       )
                     }

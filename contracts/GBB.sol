@@ -14,6 +14,7 @@ contract GBB {
       StatusMove status;
       bytes32 hashBlend;
       uint prize;
+      address adversary;
       address winner;
     }
 
@@ -23,10 +24,14 @@ contract GBB {
         uint prize;
     }
 
+    event NewMove(uint id, address owner, uint prize);
+    event MoveCancelled(uint id);
+    event MovePlayed(uint id, address owner, address adversary, address winner);
+    event Withdraw(address receiver, uint amount);
+
     uint totalMovesCount = 0;
 
     mapping (uint => address) private moveOf;
-    mapping (address => uint) private ownerMovesCount;
     mapping (address => uint256) private unclaimedAmounts;
     Move[] public moves;
     string[] private blendsHash;
@@ -36,11 +41,11 @@ contract GBB {
     }
 
     function newMove(bytes32 _hashBlend) external payable {
-      Move memory move = Move(StatusMove.Unplayed, _hashBlend, msg.value, address(0));
+      Move memory move = Move(StatusMove.Unplayed, _hashBlend, msg.value, address(0), address(0));
       moves.push(move);
       moveOf[moves.length - 1] = msg.sender;
-      ownerMovesCount[msg.sender]++;
       totalMovesCount++;
+      emit NewMove(moves.length - 1, msg.sender, msg.value);
     }
 
     function cancelMove(uint _moveId) external {
@@ -49,8 +54,8 @@ contract GBB {
       require(targetMove.status == StatusMove.Unplayed);
       targetMove.status = StatusMove.Cancelled;
       uint unclaimedAmount = targetMove.prize;
-      targetMove.prize = 0;
       unclaimedAmounts[msg.sender] = unclaimedAmount;
+      emit MoveCancelled(_moveId);
     }
 
     function withdraw() external {
@@ -59,32 +64,33 @@ contract GBB {
         unclaimedAmounts[msg.sender] = 0;
         (bool success,) = address(msg.sender).call{value: amount}("");
         require(success);
+        emit Withdraw(msg.sender, amount);
     }
 
     function getUnplayedMoves() external view returns (MovePointer[] memory) {
         MovePointer[] memory unplayedMoves = new MovePointer[](totalMovesCount);
-
+        uint counter = 0;
         for (uint i = 0; i < totalMovesCount; i++) {
             if (moves[i].status == StatusMove.Unplayed) {
                 address ownerOfMove = moveOf[i];
-                unplayedMoves[i] = MovePointer(i, ownerOfMove, moves[i].prize);
+                unplayedMoves[counter] = MovePointer(i, ownerOfMove, moves[i].prize);
+                counter++;
             }
         }
         return unplayedMoves;
     }
     
     function getMyMoves() external view returns (Move[] memory) {
-        Move[] memory myMoves = new Move[](ownerMovesCount[msg.sender]);
-        uint counter = 0;
+        Move[] memory myMoves = new Move[](totalMovesCount);
         for (uint i = 0; i < totalMovesCount; i++) {
-            if (moveOf[i] == msg.sender || moves[i].winner == msg.sender) {
+            if (moveOf[i] == msg.sender || moves[i].adversary == msg.sender) {
                 Move memory move = moves[i];
-                myMoves[counter] = move;
-                counter++;
+                myMoves[i] = move;
             }
         }
         return myMoves;
     }
+    
     function getMyUnclaimedAmount() external view returns (uint) {
       return unclaimedAmounts[msg.sender];
     }
@@ -228,18 +234,25 @@ contract GBB {
             }
         }
 
-        if (counterGame[0] == counterGame[1]) {
-            targetMove.status = StatusMove.Tied;
-            unclaimedAmounts[msg.sender] = msg.value;
-            unclaimedAmounts[moveOf[_moveId]] = targetMove.prize;
+        targetMove.adversary = msg.sender;
+
+        if (counterGame[0] < counterGame[1]) {
+            targetMove.status = StatusMove.Played;
+            targetMove.winner = msg.sender;
+            unclaimedAmounts[msg.sender] = unclaimedAmounts[msg.sender] + (targetMove.prize + msg.value);
+            emit MovePlayed(_moveId, moveOf[_moveId], msg.sender, msg.sender);
+
         } else if (counterGame[0] > counterGame[1]) {
             targetMove.status = StatusMove.Played;
             targetMove.winner = moveOf[_moveId];
-            unclaimedAmounts[moveOf[_moveId]] = (targetMove.prize + msg.value);
+            unclaimedAmounts[moveOf[_moveId]] = unclaimedAmounts[moveOf[_moveId]] +(targetMove.prize + msg.value);
+            emit MovePlayed(_moveId, moveOf[_moveId], msg.sender, moveOf[_moveId]);
+
         } else {
-            targetMove.status = StatusMove.Played;
-            targetMove.winner = msg.sender;
-            unclaimedAmounts[msg.sender] = (targetMove.prize + msg.value);
+            targetMove.status = StatusMove.Tied;
+            unclaimedAmounts[msg.sender] = unclaimedAmounts[msg.sender] + msg.value;
+            unclaimedAmounts[moveOf[_moveId]] = unclaimedAmounts[moveOf[_moveId]] + targetMove.prize;
+            emit MovePlayed(_moveId, moveOf[_moveId], msg.sender, address(0));
         }
 
     }

@@ -1,19 +1,41 @@
+import { formatUnits, parseUnits } from '@ethersproject/units';
+import { BigNumber } from 'ethers';
 import { Anchor, Box, Button, Header, Layer, ResponsiveContext, Text, Select, Avatar } from 'grommet';
 import { Apps, Close } from 'grommet-icons';
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useCallback, useMemo } from 'react';
 import { useSnapshot } from 'valtio';
 import { appState, useWallet } from '../App';
 import { History } from './History';
 
-const BoxClaim = ({ isLoggedIn, contract, unclaimedAmount }) => {
-  const handleClaim = () => {
-    contract.withdraw()
-  }
-  return (<Box pad='xsmall' align='center' border={{ color: 'c2' }}>
+const BoxClaim = ({ isLoggedIn, contract, unclaimedAmount, checkStatusDeploy, checkResultDeploy, showTransaction }) => {
+
+  const handleClaim = useCallback(async () => {
+    try {
+
+      let tx = await contract.withdraw();
+      showTransaction();
+      let result = await checkStatusDeploy(tx);
+      checkResultDeploy(result, 'withdraw')
+      appState.executionResults.loading = false;
+    } catch (error) {
+      console.log(error)
+      console.error(error)
+    }
+  }, [contract]);
+
+  const disabled = useMemo(
+    
+    () => {
+    if (!unclaimedAmount) return true;
+    return unclaimedAmount === "0.0"
+    
+  }, [unclaimedAmount])
+
+  return (<Box pad='xsmall' align='center' border={{ color: 'c2' }} round='small'>
     <Text size='small' weight='bold'>unclaimed:</Text>
     <Text size='small' weight='bold'>{unclaimedAmount} MATIC</Text>
     <Button
-      disabled={isLoggedIn && unclaimedAmount !== '0' ? false : true}
+      disabled={disabled}
       label='claim'
       size='small'
       onClick={handleClaim}
@@ -67,7 +89,7 @@ export const AccountManager = () => {
 
 
 const ResponsiveMenu = ({ toggleHistory, size }) => {
-  const { isLoggedIn, gameContract } = useWallet();
+  const { isLoggedIn, gameContract, checkStatusDeploy, checkResultDeploy, showTransaction } = useWallet();
   const { unclaimedAmount, themeMode } = useSnapshot(appState);
   const [openMenu, setOpenMenu] = useState(false);
 
@@ -93,7 +115,14 @@ const ResponsiveMenu = ({ toggleHistory, size }) => {
               margin={{ horizontal: 'large' }}
               onClick={toggleHistory}
             />
-            <BoxClaim isLogged={isLoggedIn} contract={gameContract} unclaimedAmount={unclaimedAmount} />
+            <BoxClaim
+              isLogged={isLoggedIn}
+              contract={gameContract}
+              unclaimedAmount={unclaimedAmount}
+              checkStatusDeploy={checkStatusDeploy}
+              checkResultDeploy={checkResultDeploy}
+              showTransaction={showTransaction}
+            />
 
             <AccountManager />
             <Select
@@ -148,15 +177,6 @@ const Faq = () => {
           In the panel on the right, the unplayed "moves" will appear, yours and those of the rest of the players.
           Your own moves give you the option to cancel, unlike other players' moves, the Play button. Hit that button and choose your combination of 3 options, then the Submit button. </Text>
       </Box>
-      {/* <Text size='small'>How to Play?</Text>
-      <Box border flex overflow={{vertical: 'scroll'}} pad='small'>
-        <Text size='small'>
-          There are two ways to play, the first is to create a new "move" and the second is to play an existing "move".
-          To create a new one, in the left panel, select your combination of 3 options and then press the Submit button.
-          In the panel on the right, the unplayed "moves" will appear, yours and those of the rest of the players.
-          Your own moves give you the option to cancel, unlike other players' moves the Play button. You press that button and choose your combination of 3 options, then the Submit button.
-        </Text>
-      </Box> */}
     </Box>
   </Box>
 }
@@ -181,9 +201,8 @@ const OptionLabel = ({
 
 const Nav = () => {
   const size = useContext(ResponsiveContext);
-  //const { activePublicKey, isLogged, explorerUrl, themeMode, env } = useSnapshot(appState);
-  const { themeMode, unclaimedAmount } = useSnapshot(appState);
-  const { isLoggedIn, currentChain, chainsSupported, switchChain, gameContract} = useWallet();
+  const { themeMode, unclaimedAmount} = useSnapshot(appState);
+  const { isLoggedIn, currentChain, chainsSupported, switchChain, gameContract, checkStatusDeploy, checkResultDeploy, showTransaction } = useWallet();
   const [openHistory, setOpenHistory] = useState(false);
   const [openFaq, setOpenFaq] = useState(false);
   const toggleFaq = () => setOpenFaq((value) => !value);
@@ -256,7 +275,14 @@ const Nav = () => {
               onClick={toggleHistory}
               margin={{ horizontal: size === 'medium' ? 'small' : 'medium' }}
             />
-              <BoxClaim isLogged={isLoggedIn} contract={gameContract} unclaimedAmount={unclaimedAmount} />
+              <BoxClaim
+                isLogged={isLoggedIn}
+                contract={gameContract}
+                unclaimedAmount={unclaimedAmount}
+                checkStatusDeploy={checkStatusDeploy}
+                checkResultDeploy={checkResultDeploy}
+                showTransaction={showTransaction}
+              />
             <AccountManager />
             <Select
               id="select"

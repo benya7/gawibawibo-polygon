@@ -5,8 +5,13 @@ import { appState, useWallet } from '../App';
 
 export const History = () => {
   const { myHistoryMoves } = useSnapshot(appState);
-  const { isLoggedIn } = useWallet();
+  const { isLoggedIn, getMyHistoryMoves } = useWallet();
   const size = useContext(ResponsiveContext);
+  
+
+  useEffect(() => {
+    getMyHistoryMoves().then(result => appState.myHistoryMoves = result)
+  }, [getMyHistoryMoves])
   
   return <Box background='c1' align='center' pad='medium' gap='medium' border={{ color: 'c2' }} fill>
     <Text>my played moves</Text>
@@ -14,6 +19,7 @@ export const History = () => {
       <Text size='small'>status</Text>
       <Text size='small'>blend</Text>
       <Text size='small'>prize (in MATIC)</Text>
+      <Text size='small'>adversary</Text>
       <Text size='small'>winner</Text>
     </Box>
     
@@ -26,6 +32,7 @@ export const History = () => {
               <Text size='small'>{item.status}</Text>
               <Text size='small'>{`${item.blendHash.substring(0, 6)}...${item.blendHash.substring(item.blendHash.length - 6)}`}</Text>
               <Text size='small'>{item.prize}</Text>
+              <Text size='small'>{`${item.adversary.substring(0, 6)}...${item.adversary.substring(item.adversary.length - 6)}`}</Text>
               <Text size='small'>{`${item.winner.substring(0, 6)}...${item.winner.substring(item.winner.length - 6)}`}</Text>
             </Box>
           )}
